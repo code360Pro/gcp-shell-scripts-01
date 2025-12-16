@@ -100,7 +100,7 @@ gcloud iam workload-identity-pools providers create-oidc "${WIF_PROVIDER_ID}" \
     --workload-identity-pool="${WIF_POOL_ID}" \
     --display-name="GitHub OIDC Provider" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.aud=assertion.aud,attribute.repository=assertion.repository" \
     --project="${PROJECT_ID}"
 
 # 5.3. Grant Workload Identity User Role (The trust relationship)
