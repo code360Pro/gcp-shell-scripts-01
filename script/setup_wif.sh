@@ -82,24 +82,18 @@ echo "Service Account permissions granted successfully."
 
 # --- 5. SETUP WORKLOAD IDENTITY FEDERATION (WIF) ---
 
-# 5.1. Create Workload Identity Pool
-echo "--- 5. Setting up WIF: Creating Workload Identity Pool: ${WIF_POOL_ID}"
-gcloud iam workload-identity-pools create "${WIF_POOL_ID}" \
-    --location="global" \
-    --display-name="GH Workload Identity Pool"
-
 # Get Project Number for the full WIF provider path
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
 WIF_POOL_PATH="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${WIF_POOL_ID}"
 
-# 5.2. Create OIDC Provider for GitHub
+# 5.2. Create OIDC Provider for GitHub (CORRECTED MAPPING)
 echo "   - Creating Workload Identity Provider for GitHub OIDC: ${WIF_PROVIDER_ID}"
 gcloud iam workload-identity-pools providers create-oidc "${WIF_PROVIDER_ID}" \
     --location="global" \
     --workload-identity-pool="${WIF_POOL_ID}" \
     --display-name="GitHub OIDC Provider" \
     --issuer-uri="https://token.actions.githubusercontent.com" \
-    --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+    --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
     --project="${PROJECT_ID}"
 
 # 5.3. Grant Workload Identity User Role (The trust relationship)
