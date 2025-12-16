@@ -1,33 +1,41 @@
 #!/bin/bash
 # ----------------------------------------------------------------------------
 # Script to set up GCP resources for Terraform deployment via GitHub Actions
-# using Workload Identity Federation (WIF). All required variables are passed
-# as command-line arguments.
+# using Workload Identity Federation (WIF). 
+# PROJECT_ID is retrieved from the gcloud configuration.
 # ----------------------------------------------------------------------------
 
 # --- PARAMETER CHECK ---
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <PROJECT_ID> <REPO_OWNER> <REPO_NAME> <GCS_REGION>"
-    echo "Example: $0 my-project my-company terraform-vm-deploy us-central1"
+if [ "$#" -ne 3 ]; then
+    echo "Usage: $0 <REPO_OWNER> <REPO_NAME> <GCS_REGION>"
+    echo "Example: $0 my-company terraform-vm-deploy us-central1"
+    exit 1
+fi
+
+# --- DYNAMIC PROJECT ID ASSIGNMENT ---
+# Get the currently configured project ID from gcloud
+PROJECT_ID=$(gcloud config get-value project)
+
+if [ -z "$PROJECT_ID" ]; then
+    echo "ERROR: GCP project ID is not set in your gcloud configuration."
+    echo "Please run: gcloud config set project <YOUR_PROJECT_ID>"
     exit 1
 fi
 
 # --- PARAMETER ASSIGNMENT ---
-PROJECT_ID=$1
-REPO_OWNER=$2          # Your GitHub Organization or Username
-REPO_NAME=$3           # Your GitHub Repository Name
-LOCATION=$4            # Region for the GCS Bucket (e.g., us-central1)
+REPO_OWNER=$1          # Your GitHub Organization or Username
+REPO_NAME=$2           # Your GitHub Repository Name
+LOCATION=$3            # Region for the GCS Bucket (e.g., us-central1)
 
 # --- FIXED / DERIVED VARIABLES ---
-SA_NAME="tf-sa"                
+SA_NAME="tf-sa"
 BUCKET_NAME="${PROJECT_ID}-tfstate-bucket"  # GCS Bucket name derived from Project ID
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 WIF_POOL_ID="github-actions-pool"
 WIF_PROVIDER_ID="github-provider"
 
-# Set the current project context
-echo "Setting gcloud project to: ${PROJECT_ID}"
-gcloud config set project "${PROJECT_ID}"
+# Set the current project context (Redundant, but good for clarity/double-check)
+echo "Using gcloud configured project ID: ${PROJECT_ID}"
 
 # --- 1. ENABLE NECESSARY APIS ---
 echo "--- 1. Enabling necessary APIs..."
