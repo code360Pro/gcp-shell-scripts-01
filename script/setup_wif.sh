@@ -19,7 +19,7 @@ REPO_NAME=$3           # Your GitHub Repository Name
 LOCATION=$4            # Region for the GCS Bucket (e.g., us-central1)
 
 # --- FIXED / DERIVED VARIABLES ---
-SA_NAME="github-tf-deployer"                
+SA_NAME="tf-sa"                
 BUCKET_NAME="${PROJECT_ID}-tfstate-bucket"  # GCS Bucket name derived from Project ID
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 WIF_POOL_ID="github-actions-pool"
