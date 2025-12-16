@@ -28,7 +28,7 @@ REPO_NAME=$2           # Your GitHub Repository Name
 LOCATION=$3            # Region for the GCS Bucket (e.g., us-central1)
 
 # --- FIXED / DERIVED VARIABLES ---
-SA_NAME="tf-sa"
+SA_NAME="tf-build-sa"
 BUCKET_NAME="${PROJECT_ID}-tfstate-bucket"  # GCS Bucket name derived from Project ID
 SA_EMAIL="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 WIF_POOL_ID="github-actions-pool"
@@ -86,7 +86,7 @@ echo "Service Account permissions granted successfully."
 echo "--- 5. Setting up WIF: Creating Workload Identity Pool: ${WIF_POOL_ID}"
 gcloud iam workload-identity-pools create "${WIF_POOL_ID}" \
     --location="global" \
-    --display-name="GitHub Actions Workload Identity Pool"
+    --display-name="GH Workload Identity Pool"
 
 # Get Project Number for the full WIF provider path
 PROJECT_NUMBER=$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")
