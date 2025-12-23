@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# 1. Validation
-if [ "$#" -ne 5 ]; then
-    echo "Usage: $0 <PROJECT_ID> <SERVICE_ACCOUNT_EMAIL> <POOL_NAME> <PROVIDER_NAME> <GITHUB_REPO>"
+# 1. Validation & Variables
+if [ "$#" -ne 6 ]; then
+    echo "Usage: $0 <PROJECT_ID> <SERVICE_ACCOUNT_EMAIL> <POOL_NAME> <PROVIDER_NAME> <GITHUB_REPO> <LOCATION>"
+    echo "Example: $0 my-prj sa@my-prj.iam.gserviceaccount.com gh-pool gh-provider org/repo us-central1"
     exit 1
 fi
 
@@ -11,47 +12,58 @@ SERVICE_ACCOUNT=$2
 POOL_NAME=$3
 PROVIDER_NAME=$4
 REPO=$5
+LOCATION=$6
+REPO_NAME=$(echo $REPO | cut -d'/' -f2) # Extracts 'repo' from 'org/repo'
 
-# Get Project Number (needed for IAM binding string)
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 
-echo "Checking configuration for Project: $PROJECT_ID ($PROJECT_NUMBER)..."
+echo "--------------------------------------------------------"
+echo "Starting Idempotent Setup for $REPO"
+echo "--------------------------------------------------------"
 
 # 2. Check/Create Workload Identity Pool
 if gcloud iam workload-identity-pools describe "$POOL_NAME" --project="$PROJECT_ID" --location="global" &>/dev/null; then
-    echo "✅ Pool '$POOL_NAME' already exists. Skipping creation."
+    echo "✅ Pool '$POOL_NAME' already exists."
 else
     echo "🏗️ Creating Pool '$POOL_NAME'..."
-    gcloud iam workload-identity-pools create "$POOL_NAME" \
-        --project="$PROJECT_ID" --location="global" --display-name="GitHub Actions Pool"
+    gcloud iam workload-identity-pools create "$POOL_NAME" --project="$PROJECT_ID" --location="global"
 fi
 
 # 3. Check/Create Workload Identity Provider
-if gcloud iam workload-identity-pools providers describe "$PROVIDER_NAME" \
-    --project="$PROJECT_ID" --location="global" --workload-identity-pool="$POOL_NAME" &>/dev/null; then
-    echo "✅ Provider '$PROVIDER_NAME' already exists. Skipping creation."
+if gcloud iam workload-identity-pools providers describe "$PROVIDER_NAME" --project="$PROJECT_ID" --location="global" --workload-identity-pool="$POOL_NAME" &>/dev/null; then
+    echo "✅ Provider '$PROVIDER_NAME' already exists."
 else
     echo "🏗️ Creating Provider '$PROVIDER_NAME'..."
     gcloud iam workload-identity-pools providers create-oidc "$PROVIDER_NAME" \
-        --project="$PROJECT_ID" \
-        --location="global" \
-        --workload-identity-pool="$POOL_NAME" \
-        --display-name="GitHub Actions Provider" \
-        --attribute-mapping="google.subject=assertion.sub,attribute.actor=assertion.actor,attribute.repository=assertion.repository" \
+        --project="$PROJECT_ID" --location="global" --workload-identity-pool="$POOL_NAME" \
+        --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
         --issuer-uri="https://token.actions.githubusercontent.com"
 fi
 
-# 4. Add IAM Policy Binding for the specific REPO
-# Note: 'add-iam-policy-binding' is inherently safe; it adds the member if it doesn't exist.
-echo "🔗 Binding Repository '$REPO' to Service Account..."
+# 4. Bind GitHub Repo to Service Account
+echo "🔗 Binding GitHub Repo to Service Account..."
 gcloud iam service-accounts add-iam-policy-binding "$SERVICE_ACCOUNT" \
     --project="$PROJECT_ID" \
     --role="roles/iam.workloadIdentityUser" \
     --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_NAME/attribute.repository/$REPO"
 
-# 5. Output the Provider Name for your GitHub YAML
+# 5. Check/Create Artifact Registry Repository
+if gcloud artifacts repositories describe "$REPO_NAME" --project="$PROJECT_ID" --location="$LOCATION" &>/dev/null; then
+    echo "✅ Artifact Registry '$REPO_NAME' already exists."
+else
+    echo "🏗️ Creating Artifact Registry '$REPO_NAME'..."
+    gcloud artifacts repositories create "$REPO_NAME" \
+        --project="$PROJECT_ID" --location="$LOCATION" --repository-format=docker
+fi
+
+# 6. Grant Push Permission to Service Account
+echo "🔐 Granting Artifact Registry Writer role to Service Account..."
+gcloud artifacts repositories add-iam-policy-binding "$REPO_NAME" \
+    --project="$PROJECT_ID" --location="$LOCATION" \
+    --role="roles/artifactregistry.writer" \
+    --member="serviceAccount:$SERVICE_ACCOUNT"
+
 echo "--------------------------------------------------------"
-echo "Configuration complete for repo: $REPO"
-echo "Use this value for 'workload_identity_provider' in GitHub Actions:"
+echo "ALL SET! Copy this Provider Name for your GitHub YAML:"
 gcloud iam workload-identity-pools providers describe "$PROVIDER_NAME" \
     --project="$PROJECT_ID" --location="global" --workload-identity-pool="$POOL_NAME" --format="value(name)"
