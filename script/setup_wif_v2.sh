@@ -79,15 +79,15 @@ gcloud artifacts repositories add-iam-policy-binding "$REPO_NAME" \
 echo "🔐 Granting container.clusterViewer role to Service Account..."
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SERVICE_ACCOUNT" \
-    --role="roles/container.clusterViewer"
-    --condition=None
+    --role="roles/container.clusterViewer" \
+    --condition=None --quiet
 
 #9 Allow the SA to actually deploy/edit resources in the cluster
 echo "🔐 Granting container.developer role to Service Account..."
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SERVICE_ACCOUNT" \
-    --role="roles/container.developer"
-    --condition=None    
+    --role="roles/container.developer" \
+    --condition=None --quiet   
 
 echo "--------------------------------------------------------"
 echo "ALL SET! Copy this Provider Name for your GitHub YAML:"
