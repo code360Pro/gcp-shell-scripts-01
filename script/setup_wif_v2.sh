@@ -86,7 +86,7 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" \
 echo "🔐 Granting container.developer role to Service Account..."
 gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$SERVICE_ACCOUNT" \
-    --role="roles/container.developer" \
+    --role="roles/container.admin" \
     --condition=None --quiet   
 
 echo "--------------------------------------------------------"
